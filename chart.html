@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Service SLA Downtime | D3.js</title>
+  <script src="https://d3js.org/d3.v7.min.js"></script>
+  <style>
+    body { font-family: Arial, sans-serif; background: #f1f5f9; padding: 30px; }
+    .card { background: #ffffff; padding: 25px; border-radius: 10px; width: 620px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); margin: 0 auto; }
+    .bar { transition: 0.2s; cursor: pointer; }
+    .bar:hover { opacity: 0.8; }
+    .tooltip {
+      position: absolute;
+      background: #1e293b;
+      color: #fff;
+      padding: 8px 12px;
+      font-size: 12px;
+      border-radius: 4px;
+      display: none;
+      pointer-events: none;
+      box-shadow: 0 4px 6px rgba(0,0,0,0.2);
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h2>Cloud Service Incident Downtime (D3.js)</h2>
+    <p style="color: #64748b; font-size: 14px;">Red bars indicate SLA breach (&gt;60m for P1, &gt;240m for P2). Hover over bars for details.</p>
+    <div id="d3-chart"></div>
+    <div id="tooltip" class="tooltip"></div>
+  </div>
+
+  <script>
+    // Data from MySQL
+    const data = [
+      { id: "INC-101", service: "Auth-Service", minutes: 75, breach: 1 },
+      { id: "INC-102", service: "Payment-Gate", minutes: 40, breach: 0 },
+      { id: "INC-103", service: "Notify-Worker", minutes: 120, breach: 0 },
+      { id: "INC-104", service: "Auth-Service", minutes: 290, breach: 1 },
+      { id: "INC-105", service: "Search-API", minutes: 60, breach: 0 },
+      { id: "INC-106", service: "Payment-Gate", minutes: 85, breach: 0 },
+      { id: "INC-107", service: "Search-API", minutes: 95, breach: 1 }
+    ];
+
+    const margin = { top: 20, right: 20, bottom: 50, left: 50 };
+    const width = 580 - margin.left - margin.right;
+    const height = 280 - margin.top - margin.bottom;
+
+    const svg = d3.select("#d3-chart")
+      .append("svg")
+      .attr("width", width + margin.left + margin.right)
+      .attr("height", height + margin.top + margin.bottom)
+      .append("g")
+      .attr("transform", `translate(${margin.left},${margin.top})`);
+
+    const x = d3.scaleBand()
+      .domain(data.map(d => `${d.service} (${d.id})`))
+      .range([0, width])
+      .padding(0.3);
+
+    const y = d3.scaleLinear()
+      .domain([0, 320])
+      .range([height, 0]);
+
+    svg.append("g")
+      .attr("transform", `translate(0,${height})`)
+      .call(d3.axisBottom(x))
+      .selectAll("text")
+      .attr("transform", "rotate(-20)")
+      .style("text-anchor", "end");
+
+    svg.append("g").call(d3.axisLeft(y));
+
+    const tooltip = d3.select("#tooltip");
+
+    svg.selectAll(".bar")
+      .data(data)
+      .enter().append("rect")
+      .attr("class", "bar")
+      .attr("x", d => x(`${d.service} (${d.id})`))
+      .attr("y", d => y(d.minutes))
+      .attr("width", x.bandwidth())
+      .attr("height", d => height - y(d.minutes))
+      .attr("fill", d => d.breach === 1 ? "#ef4444" : "#3b82f6")
+      .on("mouseover", (event, d) => {
+        tooltip.style("display", "block")
+          .html(`<strong>${d.service}</strong><br/>Outage: ${d.minutes} mins<br/>Status: ${d.breach ? 'SLA Breached' : 'Compliant'}`);
+      })
+      .on("mousemove", (event) => {
+        tooltip.style("left", (event.pageX + 10) + "px").style("top", (event.pageY - 25) + "px");
+      })
+      .on("mouseout", () => tooltip.style("display", "none"));
+  </script>
+</body>
+</html>

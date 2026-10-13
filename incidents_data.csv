@@ -1,0 +1,8 @@
+Incident_ID,Service_Name,Region,Severity,Start_Time,End_Time,Downtime_Minutes,SLA_Breached
+INC-101,Auth-Service,ap-south-1,P1,10:00,11:15,75,1
+INC-102,Payment-Gate,us-east-1,P1,14:00,14:40,40,0
+INC-103,Notify-Worker,eu-central-1,P2,09:00,11:00,120,0
+INC-104,Auth-Service,ap-south-1,P2,08:00,12:50,290,1
+INC-105,Search-API,us-east-1,P3,16:00,17:00,60,0
+INC-106,Payment-Gate,us-east-1,P2,13:00,14:25,85,0
+INC-107,Search-API,eu-central-1,P1,11:00,12:35,95,1

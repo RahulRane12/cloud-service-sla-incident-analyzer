@@ -1,0 +1,564 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Service SLA Downtime | Executive Incident Analytics</title>
+  <meta name="description" content="Interactive Cloud Service SLA Incident Performance and Downtime Analytics Dashboard powered by D3.js and MySQL data.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://d3js.org/d3.v7.min.js"></script>
+  <style>
+    :root {
+      --bg-gradient: linear-gradient(135deg, #0b0f19 0%, #111827 50%, #0d1527 100%);
+      --card-bg: rgba(17, 24, 39, 0.75);
+      --card-border: rgba(255, 255, 255, 0.08);
+      --card-glow: rgba(59, 130, 246, 0.12);
+      --text-main: #f8fafc;
+      --text-muted: #94a3b8;
+      --text-dim: #64748b;
+      --color-primary: #3b82f6;
+      --color-primary-glow: rgba(59, 130, 246, 0.35);
+      --color-breach: #ef4444;
+      --color-breach-glow: rgba(239, 68, 68, 0.35);
+      --color-compliant: #10b981;
+      --color-warning: #f59e0b;
+      --badge-bg: rgba(255, 255, 255, 0.05);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+      background: var(--bg-gradient);
+      color: var(--text-main);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 40px 20px;
+    }
+
+    .container {
+      width: 100%;
+      max-width: 920px;
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+    }
+
+    /* Header styling */
+    .header-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 16px;
+      padding-bottom: 8px;
+    }
+
+    .title-group h1 {
+      font-family: 'Outfit', sans-serif;
+      font-size: 28px;
+      font-weight: 700;
+      letter-spacing: -0.5px;
+      background: linear-gradient(135deg, #ffffff 0%, #cbd5e1 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .title-group p {
+      color: var(--text-muted);
+      font-size: 14px;
+      margin-top: 4px;
+    }
+
+    .tech-badges {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .badge {
+      font-size: 11px;
+      font-weight: 600;
+      padding: 5px 10px;
+      border-radius: 9999px;
+      background: var(--badge-bg);
+      border: 1px solid var(--card-border);
+      color: #93c5fd;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    /* KPI Summary Cards */
+    .kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 16px;
+    }
+
+    .kpi-card {
+      background: var(--card-bg);
+      backdrop-filter: blur(12px);
+      border: 1px solid var(--card-border);
+      border-radius: 14px;
+      padding: 18px 20px;
+      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.25);
+      transition: transform 0.2s ease, border-color 0.2s ease;
+    }
+
+    .kpi-card:hover {
+      transform: translateY(-2px);
+      border-color: rgba(255, 255, 255, 0.18);
+    }
+
+    .kpi-label {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.7px;
+    }
+
+    .kpi-value {
+      font-family: 'Outfit', sans-serif;
+      font-size: 30px;
+      font-weight: 700;
+      margin: 6px 0 2px 0;
+      color: #ffffff;
+    }
+
+    .kpi-value.danger { color: #f87171; }
+    .kpi-value.safe { color: #60a5fa; }
+    .kpi-value.warning { color: #fbbf24; }
+
+    .kpi-sub {
+      font-size: 12px;
+      color: var(--text-dim);
+    }
+
+    /* Main Chart Card */
+    .card {
+      background: var(--card-bg);
+      backdrop-filter: blur(16px);
+      border: 1px solid var(--card-border);
+      border-radius: 18px;
+      padding: 28px;
+      box-shadow: 0 16px 36px rgba(0, 0, 0, 0.35);
+      position: relative;
+    }
+
+    .chart-controls {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+
+    .legend {
+      display: flex;
+      align-items: center;
+      gap: 18px;
+      font-size: 13px;
+    }
+
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      color: var(--text-muted);
+    }
+
+    .legend-dot {
+      width: 12px;
+      height: 12px;
+      border-radius: 3px;
+    }
+
+    .legend-dot.breach {
+      background: var(--color-breach);
+      box-shadow: 0 0 8px var(--color-breach-glow);
+    }
+
+    .legend-dot.compliant {
+      background: var(--color-primary);
+      box-shadow: 0 0 8px var(--color-primary-glow);
+    }
+
+    .filter-btn-group {
+      display: flex;
+      background: rgba(0, 0, 0, 0.3);
+      padding: 3px;
+      border-radius: 10px;
+      border: 1px solid var(--card-border);
+    }
+
+    .filter-btn {
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      padding: 6px 14px;
+      border-radius: 8px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .filter-btn.active {
+      background: #2563eb;
+      color: #ffffff;
+      box-shadow: 0 2px 8px rgba(37, 99, 235, 0.4);
+    }
+
+    /* D3 Chart SVG */
+    #d3-chart {
+      width: 100%;
+      overflow-x: auto;
+    }
+
+    svg text {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      fill: #94a3b8;
+      font-size: 12px;
+    }
+
+    .domain, .tick line {
+      stroke: #334155;
+    }
+
+    .grid line {
+      stroke: rgba(255, 255, 255, 0.05);
+      stroke-dasharray: 2, 2;
+    }
+
+    .bar {
+      transition: opacity 0.2s ease, transform 0.2s ease;
+      cursor: pointer;
+      rx: 4px;
+      ry: 4px;
+    }
+
+    .bar:hover {
+      opacity: 0.85;
+      filter: brightness(1.2);
+    }
+
+    .threshold-line {
+      stroke: rgba(239, 68, 68, 0.45);
+      stroke-dasharray: 4, 4;
+      stroke-width: 1.5;
+    }
+
+    /* Tooltip */
+    .tooltip {
+      position: absolute;
+      background: rgba(15, 23, 42, 0.95);
+      backdrop-filter: blur(8px);
+      color: #f8fafc;
+      padding: 12px 16px;
+      font-size: 13px;
+      border-radius: 8px;
+      display: none;
+      pointer-events: none;
+      box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(255, 255, 255, 0.1);
+      z-index: 100;
+      line-height: 1.5;
+    }
+
+    .tooltip-header {
+      font-weight: 700;
+      font-size: 14px;
+      color: #ffffff;
+      margin-bottom: 4px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .tooltip-status {
+      display: inline-block;
+      font-size: 11px;
+      font-weight: 600;
+      padding: 2px 8px;
+      border-radius: 4px;
+      margin-top: 6px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .status-breach {
+      background: rgba(239, 68, 68, 0.2);
+      color: #fca5a5;
+      border: 1px solid rgba(239, 68, 68, 0.4);
+    }
+
+    .status-compliant {
+      background: rgba(16, 185, 129, 0.2);
+      color: #6ee7b7;
+      border: 1px solid rgba(16, 185, 129, 0.4);
+    }
+
+    /* Footer Table / Details */
+    .data-summary {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding-top: 14px;
+      border-top: 1px solid var(--card-border);
+      color: var(--text-dim);
+      font-size: 13px;
+    }
+
+    .source-tag {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      color: #38bdf8;
+      font-size: 12px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <!-- Header -->
+    <header class="header-bar">
+      <div class="title-group">
+        <h1>Cloud Service Incident Downtime</h1>
+        <p>Real-time microservice downtime monitoring &amp; SLA breach compliance tracker</p>
+      </div>
+      <div class="tech-badges">
+        <span class="badge">D3.js v7</span>
+        <span class="badge">MySQL (XAMPP)</span>
+        <span class="badge">Excel Cleaned</span>
+      </div>
+    </header>
+
+    <!-- KPI Metrics Cards -->
+    <section class="kpi-grid">
+      <div class="kpi-card">
+        <div class="kpi-label">Total Incidents</div>
+        <div class="kpi-value" id="kpi-total">7</div>
+        <div class="kpi-sub">Across 4 microservices</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">SLA Breaches</div>
+        <div class="kpi-value danger" id="kpi-breaches">3</div>
+        <div class="kpi-sub">42.9% Breach rate</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Average Downtime</div>
+        <div class="kpi-value warning" id="kpi-avg">109.3m</div>
+        <div class="kpi-sub">MTTR Benchmark</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Max Outage</div>
+        <div class="kpi-value safe" id="kpi-max">290m</div>
+        <div class="kpi-sub">INC-104 (Auth-Service)</div>
+      </div>
+    </section>
+
+    <!-- Chart Card -->
+    <main class="card">
+      <div class="chart-controls">
+        <div class="legend">
+          <div class="legend-item">
+            <span class="legend-dot breach"></span>
+            <span>SLA Breached (&gt;60m P1, &gt;240m P2/P3)</span>
+          </div>
+          <div class="legend-item">
+            <span class="legend-dot compliant"></span>
+            <span>SLA Compliant</span>
+          </div>
+        </div>
+
+        <div class="filter-btn-group">
+          <button class="filter-btn active" onclick="filterData('all', this)">All (7)</button>
+          <button class="filter-btn" onclick="filterData('breached', this)">Breached (3)</button>
+          <button class="filter-btn" onclick="filterData('compliant', this)">Compliant (4)</button>
+        </div>
+      </div>
+
+      <!-- D3 Chart Render Target -->
+      <div id="d3-chart"></div>
+
+      <!-- Tooltip Element -->
+      <div id="tooltip" class="tooltip"></div>
+
+      <div class="data-summary">
+        <span class="source-tag">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><ellipse cx="12" cy="5" rx="9" ry="3"></ellipse><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"></path><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"></path></svg>
+          Connected to MySQL: cloud_sla_db.fact_incidents
+        </span>
+        <span>Interactive tooltips enabled &bull; Click or hover bars</span>
+      </div>
+    </main>
+  </div>
+
+  <script>
+    // Master incident data from MySQL / Excel
+    const rawData = [
+      { id: "INC-101", service: "Auth-Service", region: "ap-south-1", severity: "P1", minutes: 75, breach: 1 },
+      { id: "INC-102", service: "Payment-Gate", region: "us-east-1", severity: "P1", minutes: 40, breach: 0 },
+      { id: "INC-103", service: "Notify-Worker", region: "eu-central-1", severity: "P2", minutes: 120, breach: 0 },
+      { id: "INC-104", service: "Auth-Service", region: "ap-south-1", severity: "P2", minutes: 290, breach: 1 },
+      { id: "INC-105", service: "Search-API", region: "us-east-1", severity: "P3", minutes: 60, breach: 0 },
+      { id: "INC-106", service: "Payment-Gate", region: "us-east-1", severity: "P2", minutes: 85, breach: 0 },
+      { id: "INC-107", service: "Search-API", region: "eu-central-1", severity: "P1", minutes: 95, breach: 1 }
+    ];
+
+    let currentFilter = 'all';
+
+    const margin = { top: 30, right: 25, bottom: 65, left: 55 };
+    const width = 860 - margin.left - margin.right;
+    const height = 340 - margin.top - margin.bottom;
+
+    const svg = d3.select("#d3-chart")
+      .append("svg")
+      .attr("viewBox", `0 0 ${width + margin.left + margin.right} ${height + margin.top + margin.bottom}`)
+      .attr("preserveAspectRatio", "xMidYMid meet")
+      .style("width", "100%")
+      .style("height", "auto")
+      .append("g")
+      .attr("transform", `translate(${margin.left},${margin.top})`);
+
+    // X Scale
+    const x = d3.scaleBand()
+      .range([0, width])
+      .padding(0.35);
+
+    // Y Scale
+    const y = d3.scaleLinear()
+      .domain([0, 320])
+      .nice()
+      .range([height, 0]);
+
+    // Grid lines
+    svg.append("g")
+      .attr("class", "grid")
+      .call(d3.axisLeft(y).tickSize(-width).tickFormat(""));
+
+    // Axes groups
+    const xAxisGroup = svg.append("g")
+      .attr("transform", `translate(0,${height})`);
+
+    const yAxisGroup = svg.append("g");
+    yAxisGroup.call(d3.axisLeft(y).ticks(6).tickFormat(d => d + "m"));
+
+    // Y axis label
+    svg.append("text")
+      .attr("transform", "rotate(-90)")
+      .attr("y", -42)
+      .attr("x", -height / 2)
+      .attr("text-anchor", "middle")
+      .attr("fill", "#64748b")
+      .attr("font-size", "11px")
+      .attr("font-weight", "600")
+      .text("DOWNTIME DURATION (MINUTES)");
+
+    // P1 Threshold benchmark line at 60m
+    svg.append("line")
+      .attr("class", "threshold-line")
+      .attr("x1", 0)
+      .attr("x2", width)
+      .attr("y1", y(60))
+      .attr("y2", y(60));
+
+    svg.append("text")
+      .attr("x", width - 6)
+      .attr("y", y(60) - 6)
+      .attr("text-anchor", "end")
+      .attr("fill", "#ef4444")
+      .attr("font-size", "10px")
+      .attr("font-weight", "600")
+      .text("P1 SLA Limit (60m)");
+
+    const tooltip = d3.select("#tooltip");
+
+    function renderChart(filteredData) {
+      x.domain(filteredData.map(d => `${d.service} (${d.id})`));
+
+      // Update X Axis
+      xAxisGroup.transition().duration(400)
+        .call(d3.axisBottom(x))
+        .selectAll("text")
+        .attr("transform", "rotate(-20)")
+        .style("text-anchor", "end")
+        .style("font-size", "11px")
+        .style("fill", "#94a3b8")
+        .attr("dx", "-.6em")
+        .attr("dy", ".4em");
+
+      // Data join
+      const bars = svg.selectAll(".bar")
+        .data(filteredData, d => d.id);
+
+      // Exit
+      bars.exit()
+        .transition().duration(300)
+        .attr("y", height)
+        .attr("height", 0)
+        .remove();
+
+      // Enter + Update
+      bars.enter()
+        .append("rect")
+        .attr("class", "bar")
+        .attr("x", d => x(`${d.service} (${d.id})`))
+        .attr("width", x.bandwidth())
+        .attr("y", height)
+        .attr("height", 0)
+        .attr("fill", d => d.breach === 1 ? "#ef4444" : "#3b82f6")
+        .on("mouseover", (event, d) => {
+          tooltip.style("display", "block")
+            .html(`
+              <div class="tooltip-header">${d.service} &bull; ${d.id}</div>
+              <div>Severity Tier: <strong>${d.severity}</strong></div>
+              <div>Cloud Region: <strong>${d.region}</strong></div>
+              <div>Outage Duration: <strong>${d.minutes} mins</strong></div>
+              <div class="tooltip-status ${d.breach === 1 ? 'status-breach' : 'status-compliant'}">
+                ${d.breach === 1 ? '⚠️ SLA Breached' : '✓ SLA Compliant'}
+              </div>
+            `);
+        })
+        .on("mousemove", (event) => {
+          tooltip.style("left", (event.pageX + 14) + "px").style("top", (event.pageY - 30) + "px");
+        })
+        .on("mouseout", () => tooltip.style("display", "none"))
+        .merge(bars)
+        .transition().duration(600)
+        .attr("x", d => x(`${d.service} (${d.id})`))
+        .attr("width", x.bandwidth())
+        .attr("y", d => y(d.minutes))
+        .attr("height", d => height - y(d.minutes))
+        .attr("fill", d => d.breach === 1 ? "#ef4444" : "#3b82f6");
+    }
+
+    function filterData(type, btn) {
+      currentFilter = type;
+      document.querySelectorAll(".filter-btn").forEach(b => b.classList.remove("active"));
+      if (btn) btn.classList.add("active");
+
+      let filtered = rawData;
+      if (type === 'breached') filtered = rawData.filter(d => d.breach === 1);
+      if (type === 'compliant') filtered = rawData.filter(d => d.breach === 0);
+
+      renderChart(filtered);
+    }
+
+    // Initial render
+    renderChart(rawData);
+  </script>
+</body>
+</html>
