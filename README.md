@@ -4,9 +4,12 @@
 [![MySQL](https://img.shields.io/badge/Database-MySQL_10.4_(XAMPP)-blue?logo=mysql)](https://www.mysql.com)
 [![Tableau](https://img.shields.io/badge/BI_Tool-Tableau_Public-E97627?logo=tableau)](https://public.tableau.com)
 [![Excel](https://img.shields.io/badge/ETL-Microsoft_Excel-217346?logo=microsoftexcel)](https://microsoft.com/excel)
+[![Industry Guide](https://img.shields.io/badge/Production_Guide-Real--World_Use_Cases-8A2BE2?logo=gitbook)](REAL_WORLD_INDUSTRY_USE_CASES.md)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
 An end-to-end Data Analytics and Business Intelligence project demonstrating the lifecycle of incident triage data: from cleaning messy operational logs in **Microsoft Excel**, to dimensional modeling (Star Schema) and aggregations in **MySQL (XAMPP)**, to interactive web visualization in **D3.js**, and an executive dashboard in **Tableau**.
+
+> 📘 **Industry Application Guide:** Read [REAL_WORLD_INDUSTRY_USE_CASES.md](REAL_WORLD_INDUSTRY_USE_CASES.md) for how this project mirrors Fortune 500 SRE architecture, FinTech incident triage, Gartner downtime cost models, and STAR-method interview scripts.
 
 ---
 
@@ -124,6 +127,7 @@ Cloud Service SLA & Incident Performance Analyzer | MySQL (XAMPP), Excel, Tablea
 ```
 ├── .gitignore                    # Git ignore file
 ├── README.md                     # Project documentation
+├── REAL_WORLD_INDUSTRY_USE_CASES.md # Enterprise SRE & industry application guide
 ├── incidents_data.csv            # Cleaned dataset with calculated fields
 ├── schema_and_data.sql           # MySQL DDL & DML setup script
 ├── reporting_query.sql           # SQL business reporting query
